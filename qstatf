@@ -1,0 +1,9 @@
+#!/bin/bash 
+#for i in `qstat -u $USER|awk '{if($2=="'$USER'"){split($1,a,".");print a[1]}}'`
+#do 
+#	printf "%7s %8s %6s %2s %3s %2s  %s\n" $i  `qstat -a $i| grep $i | awk '{printf "%s %s %s %s %s ", $2, $3, $6 ,$7, $10 }'`   `qstat -f1 $i 2>/dev/null|grep -i Output_path|cut -d : -f 2-|sed 's/\/[^\/]*\.o[0-9]*$//;s,/[^/]*/[^/]*/'$USER',~,'`
+#done
+qstat -au $USER| sed -n '6,$'p  > /tmp/temp_wdhu_info
+qstat -f1 -u $USER|grep Variable_List|sed 's/,/\n/g'|awk -F = '{if($1=="PBS_O_WORKDIR")print $2}'|sed 's,/[^/]*/[^/]*/'$USER',~,' > /tmp/temp_wdhu_dir
+paste /tmp/temp_wdhu_info /tmp/temp_wdhu_dir | awk '{split($1,a,".");printf"%3d %8s %7s %6s  %-12s %2s %3s %2s  %s\n",NR, a[1],$2, $3, substr($4,1,12), $6,$7, $10, $12}'
+rm -rf /tmp/temp_wdhu_info /tmp/temp_wdhu_dir 

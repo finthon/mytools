@@ -1,0 +1,131 @@
+#!/bin/bash
+#########################################################################
+# File Name: charge.sh
+# Author: wdhu@219.220.210.138
+# Created Time: Mon 25 Apr 2016 11:05:00 PM CST
+#########################################################################
+if [ "$1" == "-h" -o "$1" == "--help" ];then
+cat > temp_help << EOF
+Usage: charge [0] [x,y,z] [start] [end] {[x,y,z] [start] [end] {[x,y,z] [start] [end]}}
+Or:    charge [1] [element] [i] [j] [k] ... (max 5)
+Or:    charge [2] [column] [i] [j] [k] ... (max 5)
+Or     charge [3] [0] [i] [j] [k]   (atom num)
+Or     charge [3] [1] [start] [end] (atom num)
+EOF
+cat temp_help
+rm temp_help -rf
+exit 0
+fi
+if [[ $# == 0 ]];then
+	exit
+fi
+totnumions=`awk '{if(NR == 7) {sum = 0; for(i=1;i<=NF;i++) sum +=$i }}END{ print(sum)}' CONTCAR`
+grep ZVAL POTCAR |sed 's/;/\n/'|awk '{if($1 == "ZVAL"){print $3}}' > electron
+awk '{if(NR == 7) for  (i=1;i<=NF;i++ ) print $i}' CONTCAR > ionspertype
+awk '{if(NR == 6) for  (i=1;i<=NF;i++ ) print $i}' CONTCAR > element
+paste ionspertype element electron | awk '{for(i=1;i<=$1;i++){printf"%s  %s  %s \n",$2,$3,NR}}' > tot_info
+awk '{if(NR >=3 && NR <= '$totnumions'+2){print $0}}' ACF.dat > ACF.dat_short
+paste tot_info ACF.dat_short > total_ACF
+if [[ $1 == 0 ]];then
+	shift
+    if [[ $# < 3 ]];then
+        exit
+    fi
+    if [[ $1 == x || $1 == X ]];then
+        awk '{if($5>='$2'&&$5<='$3'){print $0}}' total_ACF > total_ACF_2
+    elif [[ $1 == y || $1 == Y ]];then
+        awk '{if($6>='$2'&&$6<='$3'){print $0}}' total_ACF > total_ACF_2
+    elif [[ $1 == z || $1 == Z ]];then
+        awk '{if($7>='$2'&&$7<='$3'){print $0}}' total_ACF > total_ACF_2
+    else
+        exit
+    fi
+	mv total_ACF_2 total_ACF
+    shift;shift;shift
+    if [[ $# > 2 ]];then
+	    if [[ $1 == x || $1 == X ]];then
+	        awk '{if($5>='$2'&&$5<='$3'){print $0}}' total_ACF > total_ACF_2
+	    elif [[ $1 == y || $1 == Y ]];then
+	        awk '{if($6>='$2'&&$6<='$3'){print $0}}' total_ACF > total_ACF_2
+	    elif [[ $1 == z || $1 == Z ]];then
+	        awk '{if($7>='$2'&&$7<='$3'){print $0}}' total_ACF > total_ACF_2
+	    else
+	        exit
+	    fi
+		mv total_ACF_2 total_ACF
+		shift;shift;shift
+		if [[ $# > 2 ]];then
+			if [[ $1 == x || $1 == X ]];then
+    	        awk '{if($5>='$2'&&$5<='$3'){print $0}}' total_ACF > total_ACF_2
+       	 	elif [[ $1 == y || $1 == Y ]];then
+            	awk '{if($6>='$2'&&$6<='$3'){print $0}}' total_ACF > total_ACF_2
+	        elif [[ $1 == z || $1 == Z ]];then
+	            awk '{if($7>='$2'&&$7<='$3'){print $0}}' total_ACF > total_ACF_2
+	        else
+	            exit
+	        fi
+			mv total_ACF_2 total_ACF
+			shift;shift;shift
+		fi
+	fi
+#	cat total_ACF
+    awk 'BEGIN{e=0;i=0;c=0}{e+=$8;c=c+$2-$8;i=i+1}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+#	if [[ $# != 4 ]];then
+#		exit
+#	fi
+#	if [[ $2 == x || $2 == X ]];then
+#		awk 'BEGIN{e=0;i=0;c=0}{if($5>='$3'&&$5<='$4'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+#	elif [[ $2 == y || $2 == Y ]];then
+#		awk 'BEGIN{e=0;i=0;c=0}{if($6>='$3'&&$6<='$4'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+#	elif [[ $2 == y || $2 == Y ]];then
+#		awk 'BEGIN{e=0;i=0;c=0}{if($7>='$3'&&$7<='$4'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+#	else
+#		exit
+#	fi
+elif [[ $1 == 1 ]];then
+	awk 'BEGIN{e=0;i=0;c=0}{if($1 == "'$2'"||$1 == "'$3'"||$1 == "'$4'"||$1 == "'$5'"||$1 == "'$6'"){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+elif [[ $1 == 2 ]];then
+	awk 'BEGIN{e=0;i=0;c=0}{if($3 == "'$2'"||$3 == "'$3'"||$3 == "'$4'"||$3 == "'$5'"||$3 == "'$6'"){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+elif [[ $1 == 3 ]];then
+	shift
+	if [[ $1 == 0 ]];then
+		shift
+		rm total_ACF_e -rf
+		for i in $@
+		do
+			sed -n ''$i''p total_ACF >>  total_ACF_e
+		done
+		mv total_ACF_e total_ACF
+		awk 'BEGIN{e=0;i=0;c=0}{e+=$8;c=c+$2-$8;i=i+1}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+	elif [[ $1 == 1 ]];then
+		shift
+		awk 'BEGIN{e=0;i=0;c=0}{if(NR >= '$1' && NR <= '$2'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF
+	fi
+#elif [[ $1 == 4 ]];then
+#	if [[ $2 == x || $2 == X ]];then
+#		awk '{if($5>='$3'&&$5<='$4'){print $0}' > total_ACF_2
+#	elif [[ $2 == y || $2 == Y ]];then
+#		awk '{if($6>='$3'&&$6<='$4'){print $0}' > total_ACF_2
+#	elif [[ $2 == y || $2 == Y ]];then
+#		awk '{if($7>='$3'&&$7<='$4'){print $0}' > total_ACF_2
+#	else
+#		exit
+#	fi
+#	shift;shift;shift
+#	if [[ $2 == x || $2 == X ]];then
+#		awk 'BEGIN{e=0;i=0;c=0}{if($5>='$3'&&$5<='$4'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF_2
+#	elif [[ $2 == y || $2 == Y ]];then
+#		awk 'BEGIN{e=0;i=0;c=0}{if($6>='$3'&&$6<='$4'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF_2
+#	elif [[ $2 == y || $2 == Y ]];then
+#		awk 'BEGIN{e=0;i=0;c=0}{if($7>='$3'&&$7<='$4'){e+=$8;c=c+$2-$8;i=i+1}}END{printf"Number of Ions  :  %d \nTotal Electrons :  %.4f\nTotal Charge    :  %.4f\n",i, e,c}' total_ACF_2
+#	else
+#		exit
+#	fi
+else
+	exit
+fi
+
+rm -rf total_ACF  total_ACF_e  electron ionspertype element tot_info ACF.dat_short total_ACF_2
+
+
+

@@ -1,0 +1,7 @@
+#########################################################################
+# File Name: /data/home/wdhu/script/showq.sh
+# Author: wdhu@59.78.92.45
+# Created Time: Tue 27 May 2014 03:43:19 PM CST
+#########################################################################
+#!/bin/bash
+/usr/local/maui/bin/showq | awk 'BEGIN{"/usr/local/maui/bin/showq | grep -n BLOCKED |cut -d: -f 1"|getline n}{if($3=="Running")printf"\033[32m%s\033[0m\n",$0;else if($3=="Idle"&&NR<n)printf"\033[33m%s\033[0m\n",$0;else if($3=="Idle"&&NR>n)printf"" , $0;else if($3=="Hold")printf"",$0;else print $0}'

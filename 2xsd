@@ -1,0 +1,417 @@
+#!/bin/bash
+#########################################################################
+# File Name: /data/home/wdhu/script/con2xsd.sh
+# Author: wdhu@59.78.92.45
+# Created Time: Mon Dec  8 21:31:20 CST 2014
+#########################################################################
+
+if [ "$1" == "-h" -o "$1" == "--help" ];then
+	cat > temp_c2x_help << EOF
+
+[34m#########################################################################
+# File Name: /data/home/wdhu/script/con2xsd.sh
+# Author: wdhu@59.78.92.45
+# Mail: devinhu9986@163.com
+# Created Time: Thu 22 Jan 2015 10:52:59 PM CST
+#########################################################################
+[0m
+#Creat the outxsdfile *.xsd according to the CONTCAR;
+#support the the cartesian and direct coordinates CONTCAR,whether vasp4 or vasp5 format; 
+#If INCAR or vasprun.xml exists,it will get the SPIN from it;
+#Get the job name from the subscript if it existed, or set it by the basename of the work directory;
+#Judge whether the job reached required accuracy or not according to the OUTCAR file if it existed.
+#You can set some parameters by .setting_con2xsd in home directory or work directory; or set from script ARGVs.
+#The priority of parameters is (1)script ARGVs; (2).setting_con2xsd in work directory; (3).setting_con2xsd in home directory.
+#You can get the ENERGY FORCE MAG in the Symmetry System name in MS.
+  
+ [31mExamples[0m                     [34mChoices[0m                                                             [32mDefault[0m
+ [31mdownload=Y[0m                   [34m#Y:download the outxsdfile to your local computer or N(not)[0m         [32m#Y[0m
+ [31mchargemode=1[0m                 [34m#0:export total electrons; not 0: export charge(need POTCAR)[0m        [32m#1[0m
+ [31mspininfile=INCAR[0m             [34m#files like INCAR or vasprun.xml[0m                                    [32m#INCAR[0m
+ [31mchargeinfile=ACF.dat[0m         [34m#files like ACF.dat or file format like ACF.dat[0m                     [32m#ACF.dat[0m
+ [31mcsdir=\$HOME/script/converter [0m[34m#converter directory(converter Cart to fract)                   [0m   [32m #\$HOME/script[0m
+ The Argv setting
+ (1) You can set the parameters like the examples above.
+ (2) if the argv isnot in (1) and without "-" the outxsdfile name will set to it.
+ (4) -y -n ......               the mark will set to the argv.
+
+Can not set Ball Size or Stick Radius in MS, but you can set the default in MS before you import.
+[33;1;5mIf you have any other problem or find any BUGs, please contact with me.[0m
+
+EOF
+	cat temp_c2x_help
+	rm -rf temp_c2x_help
+	exit 0
+fi
+rm -rf temp_c2x_*
+
+chargeinfile=ACF.dat					#ACF.dat
+spininfile=INCAR						#INCAR or vasprun.xml
+subscriptfile=vasp.script  
+download=Y    
+chargemode=1 							 #1:charge;0;electrons
+infile=CONTCAR
+csdir=$HOME/script/converter
+
+echo -e "\n  >>>>>>>>>>>>>>> Check Information <<<<<<<<<<<<<<<\n"
+#import the setting files
+if [ -f "$HOME/.setting_con2xsd" ];then
+	sed -i 's/ //g' $HOME/.setting_con2xsd
+	. $HOME/.setting_con2xsd
+	echo -e "     Read setting in home directory."
+fi
+if [ -f .setting_con2xsd ];then
+	sed -i 's/ //g' ./.setting_con2xsd
+	. ./.setting_con2xsd
+	echo -e "     Read setting in work directory."
+fi
+
+#read ARGV#
+until [ $# -eq 0 ]; do
+	if [[ $1 =~ "=" ]];then
+		argvs1=`echo $1 | awk -F = '{print $1}'`
+		argvs2=`echo $1 | awk -F = '{print $2}'`
+		eval $argvs1=$argvs2	
+	elif [[ $1 == "mag" ]];then
+        chargemode=0
+	elif [[ $1 == "charge" ]];then
+		chargemode=1
+	elif [[ $1 == "dir" ]];then
+		subscriptfile=dir
+	elif [ -f $1 ]; then
+		infile=$1
+		#statements
+	elif [[ $1 =~ "-" ]]; then
+		mars=`echo $1|awk -F\- '{print $2}'`
+	else 
+		outfilenameargv=$1
+	fi
+	shift
+done
+
+if [ -s "$infile" ];then
+	echo -e "     $infile existed, creating xsd file from it."
+else
+	echo -e "     $infile do not existed,exit!"
+	echo -e "     If you have any question or find bugs. \n     Try \` --help ' or contact me for more information."
+	echo -e "\n  <<<<<<<<<<<<<<<<<<<<<<<<=>>>>>>>>>>>>>>>>>>>>>>>>\n"
+	exit 0
+fi
+if [ -f OUTCAR ];then
+	Energy=$(grep 'energy(sigma->0)' OUTCAR 2>/dev/null |tail -1|awk -F \= '{printf"%.3f\n", $3+0}')
+	#Energy=$(grep -B 10 totalsc vasprun.xml | grep e_wo_entrp |tail -1| awk -F "<|>" '{printf"%.3f", $3+0}')
+	Mag=$(grep "number of electron" OUTCAR 2>/dev/null |tail -1|awk '{printf "%.2f\n", $6+0}')
+	Force=$(cat OUTCAR 2>/dev/null | grep RMS | awk '{printf"%.3f\n", $5+0}' | sort -n | head -1 )
+	echo -e "     Successfully get energy(\033[32;1m$Energy\033[0m),force(\033[35;1m$Force\033[0m),\n                    total mag(\033[36;1m$Mag\033[0m) from OUTCAR."
+elif [ -f vasprun.xml ];then
+	Energy=$(grep -B 10 totalsc vasprun.xml | grep e_wo_entrp |tail -1| awk -F "<|>" '{printf"%.3f", $3+0}')
+	Force=0
+	Mag=0
+	echo -e "     Successfully get energy(\033[32;1m$Energy\033[0m) from vasprun.xml."
+elif [ -f print-out ];then
+	Energy=$(grep mag print-out | tail -1 |awk '{printf"%.3f",$5+0}')
+	Mag=$(grep mag print-out | tail -1 |awk '{printf"%.2f",$10+0}')
+	Force=0
+	echo -e "     Successfully get energy(\033[32;1m$Energy\033[0m) from print-out."
+elif [ -f OSZICAR ];then
+	Energy=$(grep mag OSZICAR | tail -1 |awk '{printf"%.3f",$5+0}')
+	Mag=$(grep mag OSZICAR | tail -1 |awk '{printf"%.2f",$10+0}')
+	Force=0
+	echo -e "     Successfully get energy(\033[32;1m$Energy\033[0m) from OSZICAR."
+else
+	Energy=0
+	Force=0
+	Mag=0
+fi
+
+if [ -f OUTCAR ];then
+	if [ "`grep "reached required accuracy" OUTCAR`" ];then
+		mar="y"
+	else
+		mar="n"
+	fi
+elif [ -f print-out ];then
+	if [ "`grep "reached required accuracy" print-out`" ];then
+		mar="y"
+	else
+		mar="n"
+	fi
+else
+	mar="out"
+fi
+
+####Lattice Parameter####
+sed -n '2,5p;6q' $infile | awk '{if(NR==1){scale=$1;printf""}else{printf" %16.10f   %16.10f   %16.10f\n",$1*scale,$2*scale,$3*scale}}' > temp_c2x_lattice
+
+###Ions information###
+
+####ions types & number###
+if [[ `sed -n 6p $infile|sed 's/ //g'` =~ [0-9] ]];then
+	awk '{if(NR == 6) for(i=1;i<=NF;i++ ) print $i}' $infile > temp_c2x_ionspertype
+	totnumions=`awk '{if(NR == 6) {sum = 0; for(i=1;i<=NF;i++) sum +=$i }}END{ print(sum)}' $infile`
+	typenum=`awk '{if(NR == 6){print NF}}' $infile`
+	if [ `head -1 POSCAR | awk -F: '{print $2}'|awk '{print NF}'` == $typenum ];then
+		head -1 $infile | awk -F: '{print $2}' |awk '{for (i=1;i<=NF;i++ ) print $i}'| sed 's/[0-9]/,&/' > temp_c2x_atomtypes
+	fi
+else
+	awk '{if(NR == 7) for  (i=1;i<=NF;i++ ) print $i}' $infile > temp_c2x_ionspertype
+	totnumions=`awk '{if(NR == 7) {sum = 0; for(i=1;i<=NF;i++) sum +=$i }}END{ print(sum)}' $infile`
+	typenum=`awk '{if(NR == 6){print NF}}' $infile`
+	if [ `head -1 POSCAR | awk -F: '{print $2}'|awk '{print NF}'` == $typenum ];then
+		head -1 $infile | awk -F: '{print $2}' |awk '{for (i=1;i<=NF;i++ ) print $i}'| sed 's/[0-9]/,&/' > temp_c2x_atomtypes
+	else
+		awk '{if(NR == 6) for  (i=1;i<=NF;i++ ) print $i}' $infile > temp_c2x_atomtypes
+	fi
+fi
+
+if [ ! -f temp_c2x_atomtypes ]; then
+	if [ -f OUTCAR ];then
+		grep -B1 "local pseudopotential read" OUTCAR | grep POTCAR | awk '{print $3}' > temp_c2x_atomtypes
+		echo -e "     Get element types from OUTCAR"
+	elif [ -f POTCAR ];then
+		grep TITEL POTCAR | awk '{print $4}' > temp_c2x_atomtypes
+		echo -e "     Get element types from POTCAR"
+	elif [ -f vasprun.xml ];then
+		awk -F "<|>" '/atomtype/,/atomtypes/{print $5}'  $infile | xargs -n 1 |uniq > temp_c2x_atomtypes
+		echo -e "     Get element types from vasprun.xml"
+	elif [ -f OUT.ANI ];then
+		grep -A $totnumions STEP $infile | tail -$totnumions | awk '{print $1}' |uniq > temp_c2x_atomtypes
+		echo -e "     Get element types from OUT.ANI"
+	else
+		echo -e "     Connot find element in CONTCAR or OUTCAR or POTCAR etc."
+		echo -e "     Please specify the $typenum element types manually, or enter Q to quit!!!"
+		rm -rf temp_c2x_atomtypes
+		i=0
+		until [ $i -eq "$typenum" ]; do
+			read elementread
+			if [ $elementread == "Q" -o $elementread == "q" ]; then
+				echo -e "     Exit!!!"
+				echo -e "     If you have any question or find bugs. \n     Try \` --help ' or contact me for more information."
+				echo -e "\n  <<<<<<<<<<<<<<<<<<<<<<<<=>>>>>>>>>>>>>>>>>>>>>>>>\n"
+				exit 0
+			else
+				echo $elementread >> temp_c2x_atomtypes
+			fi
+			((i++))
+		done
+	fi
+fi
+
+paste temp_c2x_ionspertype  temp_c2x_atomtypes |sed 's/,/ /g' |awk 'BEGIN{a=1}{for(i=1;i<=$1;i++){printf"%s:%s,%s:%s\n",a,$2,$3+0,$2""a; a++}}' > temp_c2x_Element
+
+####ions position###
+##grep -iP '^[ |\t]*dir' POSCAR  精确匹配
+
+if [ `sed -n '7,$'p $infile |grep -c -iP '^[ |\t]*d'` -eq 1 ];then
+	sed -n '7,$'p $infile |grep -A $totnumions -iP '^[ |\t]*d' | tail -$totnumions | awk '{printf"%.12f,%.12f,%.12f\n",$1-($1<0?int($1-1):int($1)),$2-($2<0?int($2-1):int($2)),$3-($3<0?int($3-1):int($3))}'  > temp_c2x_XYZ
+	sed -n '7,$'p $infile |grep -A $totnumions -iP '^[ |\t]*d' | tail -$totnumions | awk '{printf"%s%s%s\n",$4,$5,$6}' > temp_c2x_TF
+elif [ `sed -n '7,$'p $infile |grep -c -iP '^[ |\t]*[c|k]'` -eq 1 ]; then
+	sed -n '7,$'p $infile |grep -A $totnumions -iP '^[ |\t]*[c|k]' | tail -$totnumions | awk '{printf" %.12f  %.12f  %.12f \n",$1,$2,$3}'  > temp_c2x_CartXYZ
+	sed -n '7,$'p $infile |grep -A $totnumions -iP '^[ |\t]*[c|k]' | tail -$totnumions | awk '{printf"%s%s%s\n",$4,$5,$6}' > temp_c2x_TF
+	$csdir/Cart2Direct.py temp_c2x_CartXYZ temp_c2x_lattice temp_c2x_XYZ-c
+	awk '{printf"%.12f,%.12f,%.12f\n",$1-($1<0?int($1-1):int($1)),$2-($2<0?int($2-1):int($2)),$3-($3<0?int($3-1):int($3))}' temp_c2x_XYZ-c > temp_c2x_XYZ
+else
+	echo -e "     The position infile($infile) isn't correct!!!\n     Please Check the infile and the script set."
+	echo -e "     If you have any question or find bugs. \n     Try \` --help ' or contact me for more information."
+	exit 0
+fi
+
+####SPIN#####
+if [ -f INCAR ];then
+	grep MAGMOM INCAR|awk -F \# '{print $1}'|awk -F \! '{print $1}'|awk -F = '{print $2}'|awk '{for(i=1;i<=NF;i++){if($i ~ "*" ){split($i,a,"*");for(j=1;j<=a[1];j++){print a[2]}}else{print $i}}}' > temp_c2x_SPIN
+	echo -e "     Get ions spin from INCAR."
+elif [ -f vasprun.xml ];then
+	grep -B20 NUPDOWN  vasprun.xml | grep -A20 MAGMOM | xargs | awk -F ">|<" '{print $3}' | xargs -n 1 > temp_c2x_SPIN
+	echo -e "     Get ions spin from vasprun.xml."
+fi
+
+PREC=`egrep ^PREC INCAR | grep -v PRECFOCK | awk -F \# '{print $1}'|awk -F \! '{print $1}'| awk -F \= '{print $2}'|sed 's/ //g'`
+if [ $PREC == Accurate -o $PREC == Acc -o $PREC == accurate -o $PREC == A -o $PREC == a ];then
+	mark=a-$mar
+else
+	mark=$mar
+fi
+
+####CHARGE###
+if [ -f  $chargeinfile ];then
+	sed -n '3,'$((totnumions + 2))''p $chargeinfile |awk '{print $5}' > temp_c2x_Electron
+	echo -e "     Charge information extract from $chargeinfile. "
+	if [ $chargemode == 0 ];then
+		mv temp_c2x_Electron temp_c2x_CHARG
+		mark=electron
+	else
+		mark=charge
+		grep -A1 '^ *PAW_PBE' POTCAR | grep -v "-" | grep -v "PAW" > temp_c2x_POTelectron
+		#grep "ions per type" OUTCAR | awk -F = '{print $2}' |xargs|sed 's/ /\n/' > temp_c2x_ionspertype
+		paste temp_c2x_POTelectron temp_c2x_ionspertype | awk '{for(i=0;i<$2;i++){print $1}}' > temp_c2x_BaseElectron
+		paste temp_c2x_Electron temp_c2x_BaseElectron | awk '{printf "%.3f\n", $2 - $1}' > temp_c2x_CHARG
+	fi
+else
+	echo "" > temp_c2x_CHARG
+fi
+
+paste -d: temp_c2x_Element temp_c2x_TF |awk -F: '{print $2, $4}' > temp_c2x_elemtf
+rm -rf temp_c2x_shortinfo
+for i in `awk '{print $1}' temp_c2x_elemtf |uniq `
+do
+	echo "$i  `grep -w $i temp_c2x_elemtf|grep -v FFF|wc -l`  `grep -w $i temp_c2x_elemtf|grep FFF|wc -l`"|sed 's/,/ /g' >> temp_c2x_shortinfo
+done 
+echo -e "\n     \033[4m Element      Numbers      \033[0m"
+awk 'BEGIN{t=0;f=0;tot=0};{printf"      %3s %3s \033[1;33m%4d\033[0m\033[32m%4d\033[0m(T)\033[31m%4d\033[0m(F)\n",$1,$2,$3+$4,$3,$4}{t+=$3;f+=$4;tot+=$3+$4};END{printf"     ___________________________\n      Total   \033[1;33m%4d\033[0m\033[32m%4d\033[0m(T)\033[31m%4d\033[0m(F)\n",tot,t,f}' temp_c2x_shortinfo
+
+if [[ $subscriptfile == "dir" ]];then
+	pbsname=$(basename `pwd`)
+else
+	if [ -f $subscriptfile ];then
+		pbsname=`grep "^#BSUB -J" $subscriptfile |awk '{print $3}'`
+	else
+		pbsname=`grep "^#BSUB -J" * |head -1|awk '{print $3}'`
+		if [ "x"$pbsname == "x" ];then
+			pbsname=$(basename `pwd`)
+		fi
+	fi
+fi
+
+if [ "x"$mars != "x" ];then
+	mark=$mars
+fi
+if [ "x"$outfilenameargv == "x" ];then
+	outfilename=$pbsname"-"$mark
+else
+	outfilename=$outfilenameargv
+fi
+outxsdfile=$outfilename".xsd"
+
+sed 's/,/:/g' temp_c2x_Element | awk -F: '{if($3==0){printf"%s:%s:%s\n", $1,$2,$4}else{printf"%s:%s,%s:%s\n", $1,$2,$3,$4}}' > temp_c2x_xxx
+mv temp_c2x_xxx temp_c2x_Element
+
+
+####export xsdfile#####
+####Need $totnumions $outxsdfile temp_c2x_lattice temp_c2x_Element temp_c2x_XYZ temp_c2x_TF temp_c2x_CHARG temp_c2x_SPIN #####
+#####ID#####
+ID1=$((totnumions+1))
+ID2=$((totnumions+2))
+ID3=$((totnumions+3))
+ID4=$((totnumions+4))
+ID5=$((totnumions+5))
+ID6=$((totnumions+6))
+ID7=$((totnumions+7))
+ID8=$((totnumions+8))
+ID9=$((totnumions+9))
+ID10=$((totnumions+10))
+ID11=$((totnumions+11))
+ID12=$((totnumions+12))
+ID13=$((totnumions+13))
+ID14=$((totnumions+14))
+
+
+cat > $outxsdfile << !
+<?xml version="1.0" encoding="latin1"?>
+<!DOCTYPE XSD []>
+<XSD Version="5.0" WrittenBy="Materials Studio 5.0">
+	<AtomisticTreeRoot ID="1" NumProperties="58" NumChildren="1">
+		<Property Name="AngleAxisType" DefinedOn="AngleBetweenPlanesBender" Type="Enumerated"/>
+		<Property Name="AngleEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="BeadDocumentID" DefinedOn="MesoMoleculeSet" Type="String"/>
+		<Property Name="BendBendEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="BendTorsionBendEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="BondEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="EFGAsymmetry" DefinedOn="Atom" Type="Double"/>
+		<Property Name="EFGQuadrupolarCoupling" DefinedOn="Atom" Type="Double"/>
+		<Property Name="ElectrostaticEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="FaceMillerIndex" DefinedOn="GrowthFace" Type="MillerIndex"/>
+		<Property Name="FacetTransparency" DefinedOn="GrowthFace" Type="Float"/>
+		<Property Name="FermiLevel" DefinedOn="ScalarFieldBase" Type="Double"/>
+		<Property Name="Force" DefinedOn="Matter" Type="CoDirection"/>
+		<Property Name="FrameFilter" DefinedOn="Trajectory" Type="String"/>
+		<Property Name="HarmonicForceConstant" DefinedOn="HarmonicRestraint" Type="Double"/>
+		<Property Name="HarmonicMinimum" DefinedOn="HarmonicRestraint" Type="Double"/>
+		<Property Name="HydrogenBondEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="ImportOrder" DefinedOn="Bondable" Type="UnsignedInteger"/>
+		<Property Name="InversionEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="IsBackboneAtom" DefinedOn="Atom" Type="Boolean"/>
+		<Property Name="IsChiralCenter" DefinedOn="Atom" Type="Boolean"/>
+		<Property Name="IsOutOfPlane" DefinedOn="Atom" Type="Boolean"/>
+		<Property Name="IsRepeatArrowVisible" DefinedOn="ElectrodeWire" Type="Boolean"/>
+		<Property Name="KineticEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="LineExtentPadding" DefinedOn="BestFitLineMonitor" Type="Double"/>
+		<Property Name="LinkageGroupName" DefinedOn="Linkage" Type="String"/>
+		<Property Name="ListIdentifier" DefinedOn="PropertyList" Type="String"/>
+		<Property Name="NMRShielding" DefinedOn="Atom" Type="Double"/>
+		<Property Name="NonBondEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="NormalMode" DefinedOn="Bondable" Type="Direction"/>
+		<Property Name="NormalModeFrequency" DefinedOn="Bondable" Type="Double"/>
+		<Property Name="NumScanSteps" DefinedOn="LinearScan" Type="UnsignedInteger"/>
+		<Property Name="OrbitalCutoffRadius" DefinedOn="Bondable" Type="Double"/>
+		<Property Name="PlaneExtentPadding" DefinedOn="BestFitPlaneMonitor" Type="Double"/>
+		<Property Name="PotentialEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="QuantizationValue" DefinedOn="ScalarFieldBase" Type="Double"/>
+		<Property Name="RelativeVelocity" DefinedOn="Matter" Type="Direction"/>
+		<Property Name="RepeatArrowScale" DefinedOn="ElectrodeWire" Type="Float"/>
+		<Property Name="RestraintEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="ScanEnd" DefinedOn="LinearScan" Type="Double"/>
+		<Property Name="ScanStart" DefinedOn="LinearScan" Type="Double"/>
+		<Property Name="SeparatedStretchStretchEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="SimulationStep" DefinedOn="Trajectory" Type="Integer"/>
+		<Property Name="StretchBendStretchEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="StretchStretchEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="StretchTorsionStretchEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="Temperature" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="ThreeBodyNonBondEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="TorsionBendBendEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="TorsionEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="TorsionStretchEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="TotalEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="Units" DefinedOn="ScalarFieldBase" Type="String"/>
+		<Property Name="ValenceCrossTermEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="ValenceDiagonalEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="VanDerWaalsEnergy" DefinedOn="ClassicalEnergyHolder" Type="Double"/>
+		<Property Name="_Stress" DefinedOn="MatterSymmetrySystem" Type="Matrix"/>
+		<Property Name="_TrajectoryStress" DefinedOn="MatterSymmetrySystem" Type="Matrix"/>
+!
+ci0="ci($totnumions):$totnumions+4"
+ci1="ci("$((totnumions+1))"):$totnumions+4,"$((totnumions+5))""
+ci2="ci("$((totnumions+2))"):"$((totnumions+2))"+4"
+printf "		<SymmetrySystem ID=\"2\" Mapping=\"3\" Children=\"%s\" Normalized=\"1\" Name=\"E:%s F:%s M:%s\" XYZ=\"0,0,0\" OverspecificationTolerance=\"0.05\" PeriodicDisplayType=\"Original\" HasSymmetryHistory=\"1\">\n" $ci2 $Energy $Force $Mag  >> $outxsdfile
+printf "			<MappingSet ID=\"%s\" SymmetryDefinition=\"%s\" ActiveSystem=\"2\" NumFamilies=\"1\" OwnsTotalConstraintMapping=\"1\" TotalConstraintMapping=\"3\">\n" $ID6 $ID4 >> $outxsdfile
+printf "				<MappingFamily ID=\"%s\" NumImageMappings=\"0\">\n" $ID7 >> $outxsdfile
+printf "					<IdentityMapping ID=\"%s\" Element=\"1,0,0,0,0,1,0,0,0,0,1,0\" Constraint=\"1,0,0,0,0,1,0,0,0,0,1,0\" MappedObjects=\"%s\" DefectObjects=\"%s,%s\" NumImages=\"%s\" NumDefects=\"2\">\n" $ID8 $ci1 $ID4 $ID9 $ID1 >> $outxsdfile
+paste -d: temp_c2x_Element temp_c2x_XYZ temp_c2x_TF temp_c2x_CHARG temp_c2x_SPIN|sed 's/ //g'|awk -F : '{printf "						<Atom3d ID=\"%s\" Mapping=\"%s\" Parent=\"2\"",$1+3,'$ID8'};\
+{if($5=="FFF"){printf" RestrictedBy=\"%s\" RestrictedProperties=\"FractionalXYZ\"",'$ID5'}};\
+{printf" Name=\"%s\" XYZ=\"%s\" Charge=\"%s\" Components=\"%s\" FormalSpin=\"%d\"/>\n",$3,$4,$6+0,$2,$7+0}' >> $outxsdfile
+#FFFci=`paste -d: temp_c2x_Element temp_c2x_TF |awk -F: '{print $1+3,$4}'| awk 'BEGIN{a=-1;b=1;c=0};{if($2=="FFF"){if($1==a+1){b=b+1;a=$1}else{c=$1;a=$1}}else{if(c!=0){printf"%d+%d,",b,c}{a=-1;b=1;c=0}}}'`
+#FFFci=${FFFci%,*}
+#FFFci=`paste -d: temp_c2x_Element temp_c2x_TF| awk -F: '{if($4=="FFF"){printf"%s,",$1+3}}'`
+FFFci=`paste -d: temp_c2x_Element temp_c2x_TF |awk -F: '{print $1+3,$4}'|awk '{if($2=="FFF"){print $1}}'|xargs| sed 's/ /,/g'`
+FFFnum=`grep FFF temp_c2x_TF | wc -l`
+FFFfrac=`awk 'BEGIN{a="FractionalXYZ";for(i=1;i<'$FFFnum';i++){a=a",FractionalXYZ"}print a}'`
+if [ $FFFnum -gt 0 ];then
+	echo -e "						<CompleteRestriction ID=\"$ID5\" Mapping=\"$ID8\" Parent=\"2\" RestrictsObjects=\"ci($FFFnum):$FFFci\" RestrictsProperties=\"$FFFfrac\"/>" >> $outxsdfile
+else
+	echo -e "						<CompleteRestriction ID=\"$ID5\" Mapping=\"$ID8\" Parent=\"2\" Visible=\"0\"/>" >> $outxsdfile
+fi
+awk '{printf"%s,%s,%s ",$1,$2,$3}' temp_c2x_lattice | awk '{printf"						<SpaceGroup ID=\"%s\" Parent=\"2\" Children=\"%s\" Name=\"P1\" AVector=\"%s\" BVector=\"%s\" CVector=\"%s\" Color=\"255,255,255,255\" OrientationBase=\"C along Z, A in XZ plane\" Centering=\"3D Primitive-Centered\" Lattice=\"3D Triclinic\" GroupName=\"P1\" Operators=\"1,0,0,0,0,1,0,0,0,0,1,0\" DisplayRange=\"0,1,0,1,0,1\" CylinderRadius=\"0.2\" LabelAxes=\"1\" ActiveSystem=\"2\" ITNumber=\"1\" LongName=\"P 1\" Qualifier=\"Origin-1\" SchoenfliesName=\"C1-1\" System=\"Triclinic\" Class=\"1\" DisplayStyle=\"Solid\" LineThickness=\"2\" />\"\n",'"$ID4"','"$ID9"',$1,$2,$3}' >> $outxsdfile
+echo -e "						<ReciprocalLattice3D ID=\"$ID9\" Parent=\"$ID4\" Visible=\"0\"/>" >> $outxsdfile
+echo -e " 					</IdentityMapping>" >> $outxsdfile
+echo -e "					<MappingRepairs NumRepairs=\"0\"/>"  >> $outxsdfile
+echo -e "				</MappingFamily>" >> $outxsdfile
+echo -e "				<InfiniteMapping ID=\"3\" Element=\"1,0,0,0,0,1,0,0,0,0,1,0\" MappedObjects=\"2\"/>"  >> $outxsdfile
+echo -e "			</MappingSet>"  >> $outxsdfile
+echo -e "			<OriginalObjects ID=\"$ID10\">" >> $outxsdfile
+echo -e "				<SetCollection Objects=\"$ci0\"/>" >> $outxsdfile
+echo -e "			</OriginalObjects>" >> $outxsdfile
+echo -e "		</SymmetrySystem>" >> $outxsdfile
+echo -e "	</AtomisticTreeRoot>\n</XSD>\n"   >> $outxsdfile
+####Export xsdfile END
+
+sed -i 's/Hs/Co/g;s/Mt/Co/g' $outxsdfile
+echo -e "\n     Successfully create \033[33;1m$outxsdfile\033[0m !!!"
+if [ $download == "Y" ];then
+	sz -Oq  $outxsdfile #2>&1 > /dev/null
+	echo -e "     $outxsdfile has sent to you local disc."
+	rm *.xsd
+fi
+echo -e "  <<<<<<<<<<<<<<<<<<<<<<<<=>>>>>>>>>>>>>>>>>>>>>>>>\n"
+rm -rf temp_c2x_*  
+
+ 

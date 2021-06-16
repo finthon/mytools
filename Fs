@@ -1,0 +1,27 @@
+#!/bin/sh
+if [ -e "CONTCAR" ];then
+  infile=CONTCAR
+else
+  infile=POSCAR
+fi
+rm -f temp* FORCES
+nstart=$(($(grep -n "TOTAL-FORCE" OUTCAR  | tail -1 | awk -F: '{ print $1}')+2))
+nend=$(($(grep -n "total drift" OUTCAR  | tail -1 | awk -F: '{ print $1}')-2))
+natom=$((nend-nstart+1))
+nFORCES=$(($(grep -n "drift:" OUTCAR  | tail -1 | awk -F: '{ print $1}')))
+Max=$(sed -n ''$nFORCES'p' OUTCAR | awk '{printf $5}')
+sed -n ''$nstart','$nend'p' OUTCAR | awk '{ printf "%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f%10.5f\n", $1,$2,$3,$4,$5,$6,sqrt($4*$4+$5*$5+$6*$6)}' > tempF
+nstart=$(($(grep -n "Selective" $infile  | awk -F: '{ print $1}')+2))
+nend=$((nstart+natom-1))
+sed -n ''$nstart','$nend'p' $infile | awk '{ printf "%f\t%s\t%s\t%s\t\n",'$Max',$4,$5,$6}' > tempS
+
+grep -n . tempF |awk -F: '{printf "%5d\n",$1}' >tempN
+
+paste -d" " tempN tempF tempS | awk '{ printf "%5d%10.5f%10.5f%10.5f%10.5f(%s)%10.5f(%s)%10.5f(%s)%10.5f%5d%5d\n",$1,$2,$3,$4,$5,$10,$6,$11,$7,$12,$8,sqrt(($8-$9)**2)<5E-5,$8>=0.05}'>>FORCES
+
+nM=$(awk '{print $9}' FORCES | grep -n 1 | awk -F: '{ print $1}')
+echo "  FORCES:   Max  " $Max " @ atom:  " $nM >> FORCES
+rm -f temp*
+cat FORCES | grep "(T)"  | grep -w -v "0    0"
+sed -n '$'p FORCES
+echo "  See details in FORCES file..."

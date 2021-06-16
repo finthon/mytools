@@ -1,0 +1,91 @@
+# -*- coding: utf-8 -*-
+"""
+-------------------------------------------------
+   File Name：     bjobs
+   Description :
+   Author :       DrZ
+   date：          2021/3/1
+-------------------------------------------------
+   Change Activity:
+                   2021/3/29:
+-------------------------------------------------
+"""
+import os
+import re
+import subprocess
+
+jobid_list = []
+content_list = []
+path_list = []
+runtime_list = []
+subprocess.call('bjobs > temp_jobs', shell=True)
+f = open('temp_jobs', 'r')
+
+finthon = False
+for idx, line in enumerate(f):
+    if (idx == 0) and (re.split('\s+', line)[0] != 'JOBID'):
+        print('There is no job submitted!')
+        finthon = True
+        break
+    if (idx != 0) and len(re.split('\s+', line.strip())) != 1:
+        jobid_list.append(re.split('\s+', line)[0])
+        content_list.append(line.strip())
+    if (idx != 0) and len(re.split('\s+', line.strip())) == 1:
+        content_list.append(line.rstrip())
+        jobid_list.append('None')
+
+f.close()
+os.remove('temp_jobs')
+
+if finthon is False:
+    for n, i in enumerate(jobid_list):
+        if i == 'None':
+            path_list.append('None')
+            runtime_list.append('None')
+        else:
+            subprocess.call('bjobs -l {} > temp{}'.format(i, n), shell=True)
+            f = open('temp{}'.format(n), 'r')
+            p = ''
+            for cc in f:
+                p = p + cc.strip()
+            f.close()
+            os.remove('temp{}'.format(n))
+            x = re.search('Execution CWD <.+.+>', p)
+            if x is not None:
+                # exe pwd
+                xx = re.search('<.+\n*.+>', x.group())
+                yy = re.split('\s+', xx.group())
+                if len(yy) == 1:
+                    path = yy[0].strip('<>')
+                    path_list.append(path)
+                else:
+                    path = ''
+                    for st in yy:
+                        path = path + st
+                    path = path.strip('<>')
+                    path_list.append(path)
+                # runtime
+                rt = re.search('RUNLIMIT.+[A-Z][a-z]{2,3} [A-Z][a-z]{2,3}.+:.+:.+: Started', p)
+                if rt is not None:
+                    rt = re.search('[A-Z][a-z]{2,3} .\d \d\d:\d\d', rt.group())
+                    runtime_list.append(rt.group())
+                else:
+                    raise Exception('Obtaining RUN_TIME wrong!')
+            else:
+                zz = re.search(r'CWD <.HOME/.+.+>,.*Output', p)
+                zz = re.search('<.+\n*.+>', zz.group())
+                zz = re.split('\s+', zz.group())
+                path = zz[0].strip('<>')
+                path_list.append(path)
+                runtime_list.append('------------')
+
+
+    print("{:<6}{:<11}{:<8}{:<6}{:<11}{:<12}{:<12}{:<11}{:<15}{:<15}{:<10}".format("No", "JOBID", "USER", "STAT", "QUEUE", "FROM_HOST",
+                                                                        "EXEC_HOST", "JOB_NAME", "SUBMIT_TIME", "RUN_TIME", "PATH"))
+    num = 0
+    for i in range(len(content_list)):
+        if len(re.split('\s+', content_list[i].strip())) != 1:
+            num += 1
+            print("{:<6}{}   {:<15}{:<10}".format(num, content_list[i], runtime_list[i], path_list[i]))
+        else:
+            print("      " + format(content_list[i]))

@@ -1,0 +1,38 @@
+#!/bin/sh
+if [ ! -d $1 ];then
+  if [ "$1" == "-" ];then
+    cd -
+    return
+  fi
+  qID=`echo $1 | awk -F. '{print $1}'`
+  if [ -z "$qID" ];then
+    qID=$1
+  fi
+  isnum="$(echo "$qID" | sed -n "/^[0-9]\+$/p")"
+  if [ -z "$isnum" ];then
+    workn=$qID
+    len=$(expr length $workn)
+    if [ $len -gt 16 ];then
+      nstart=$((len-12))
+      workn="..."$(expr substr $workn $nstart $len)
+    fi
+  qID=`qstat | grep -w $workn | awk -F. '{print $1}' | sed -n '1p'`
+  fi
+  n1=$(qstat -f $qID | grep -n PBS_O_WORKDIR | awk -F: '{print $1}')
+  n2=$(qstat -f $qID | wc -l | awk  '{print $1}')                                                                                                                  
+  workdir=$(qstat -f $qID | sed -n ''$n1','$n2'p' | paste -d' ' -s| sed 's/\t//g;s/ //g;s/,/ /g;s/=/ /g' |awk '{print $2}')
+else
+  if [ -n "$1" ];then
+    cd $1
+    workdir=$PWD
+  else
+    cd
+    workdir=$PWD
+    cd - >> /dev/null
+  fi
+fi
+echo $workdir
+cd  $workdir
+
+
+

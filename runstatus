@@ -1,0 +1,19 @@
+#!/bin/sh
+#########################################################################
+# File Name: runningjobstats.sh
+# Author: wdhu@59.78.92.45
+# Created Time: Tue 6 May 2014 01:28:45 PM CST
+#########################################################################
+totrunjobid=`qstat |grep $USER  | awk '$5 == "R" {print $1}'`
+rm -rf /tmp/.temp-$USER-run
+for runpbsid in $totrunjobid
+do
+	/home/pub/input_example/vasp/script/jobstatus $runpbsid >> /tmp/.temp-$USER-run 
+done
+printf "\033[33mTorqueID \033[32m Queue  \033[31m Proc \033[36mNode    \033[35mRemainingTime \033[32m Step  \033[33m Force  \033[35;1m  Energy  \033[34m    Directory\033[0m\n"
+if [[ $1 == -t  || $1 == -T ]];then
+	cat /tmp/.temp-$USER-run | sort -n -k9
+else
+	cat /tmp/.temp-$USER-run | sort -n -k2
+fi
+rm -rf /tmp/.temp-$USER-run

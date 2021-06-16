@@ -1,0 +1,62 @@
+#!/bin/sh
+
+rm -f temp*
+qsub_script=vasp.lsf
+p=$PWD
+
+dir=`find . -name OUTCAR`
+if [ -n "$1" ];then
+  dir=`find . -name OUTCAR | grep -v $1`
+fi
+for i in $dir
+do
+  cd `dirname $i`
+  if [ $? = 0 ];then
+  if [ ! -e OUTCAR  ];then
+    E="unfound  "
+    force="unfound"
+    step="0"
+  else
+    if [ -e espresso.script ];then
+      E=`grep -a "!    total energy"  OUTCAR | tail -1 | awk '{printf "%8.8E",$5*13.6058}'`
+      force=`grep "Total force"  OUTCAR | tail -1 | awk '{print $4}'`
+      step=`grep "Total force"  OUTCAR | wc -l`
+      qsub_script=espresso.script
+    else
+      E=`grep -a "mag"  OSZICAR | tail -1 | awk '{print $(NF-5)}'`
+      force=`grep FORCES:  OUTCAR | tail -1 | awk '{print $(NF-1)}'`
+      step=`grep FORCES:  OUTCAR | wc -l`
+      mag=`grep -a "mag"  OSZICAR | tail -1 | awk '{print $NF}'`
+    fi
+    if [ -z "$E" ];then
+      E="unfound  "
+    fi
+    if [ -z "$force" ];then
+      force="unfound  "
+    fi
+    if [ -z "$step" ];then
+      step="unfound  "
+    fi
+    if [ -z "$mag" ];then
+      mag="unfound    "
+    fi
+  fi
+  echo "`dirname $i`"
+  if [ -e "$qsub_script" ];then
+    name=`sed -n '2'p $qsub_script | awk '{print $NF}'`
+  else
+    name="undefined"
+  fi
+  dname=`pwd`
+  echo -e "$name $E $force $mag $step $dname" >> $p/temp1
+ fi
+cd - >> /dev/null
+done
+
+
+awk '{printf"%-16s%15s%10s%10s%8s %s\n",$1,$2,$3,$4,$5,$6}' temp1 | sort -n -k1   > temp2
+echo -e "`pwd`" > result
+echo -e "Name\t         Energy\t         Force\t    mag\t    step\t      Directory" >> result
+cat temp2 >> result
+more result
+rm -f temp*

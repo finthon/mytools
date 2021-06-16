@@ -1,0 +1,96 @@
+#!/bin/sh
+#########################################################################
+# File Name: runningjobstats.sh
+# Author: wdhu@59.78.92.45
+# Created Time: Tue 6 May 2014 01:28:45 PM CST
+#########################################################################
+ runpbsid=$1
+ qstat -f1 $runpbsid 2>/dev/null 1>/tmp/tmp.$runpbsid
+ shortrunpbsid=${runpbsid%.*}
+# node=`qstat -n1 $runpbsid |grep $runpbsid| awk '{print $12}'  | awk -F "/" '{print $1}' `
+ node=`grep exec_host /tmp/tmp.$runpbsid| awk '{print $3}'  | awk -F "/" '{print $1}' `
+ 
+ #pid=$(ssh -x $node ps aux |grep $runpbsid |grep $HOSTNAME | awk '{print $2}' )
+ #workdir=$(ssh -x $node /usr/sbin/lsof -p $pid | grep DIR|grep cwd|awk '{print $NF}')
+# workdir=$(ssh -x $node "ps aux |grep $runpbsid|grep $HOSTNAME|grep -v grep|sed 's/ \+/\n/g'|head -2|tail -1|xargs /usr/sbin/lsof -p | grep cwd"|awk '{print $NF}')
+workdir=$(qstat -f1 $runpbsid 2>/dev/null|grep -i Output_path|cut -d : -f 2-|sed 's/\/[^\/]*\.o[0-9]*$//')
+ #workdir=$(grep -i Output_path /tmp/tmp.$runpbsid|cut -d : -f 2-|sed 's/\/[^\/]*\.o[0-9]*$//')
+ #shortworkdir="~`echo $workdir |awk -F "$USER" '{print $2 }'`"
+ cd $workdir
+ shortworkdir=$DIRSTACK
+
+# procs=`qstat -r $runpbsid | grep $runpbsid | awk '{print $7}'`
+
+ procs=`grep exec_host /tmp/tmp.$runpbsid| sed 's/+/\n/g'| grep -n node| wc -l`
+ time=`showq |grep -w $shortrunpbsid |awk '{print $5}'`
+ queue=`grep "queue =" /tmp/tmp.$runpbsid| awk '{print $3 }'`
+ Tercols=`tput cols`
+ maxlendir=$((Tercols - 71 ))
+ maxlendisplay=$((maxlendir - 3))
+ lendir=`expr length $shortworkdir`
+
+#if [ -f ./solvation/OUTCAR ];then
+#	workdir=$workdir/solvation
+#	shortworkdir=$shortworkdir/solvation
+#	cd solvation
+#	E=$(cat OSZICAR 2>/dev/null | grep -a F |awk '{print $5}'  |tail -1) 
+#	F=$(cat OUTCAR  2>/dev/null | grep -a RMS  |awk '{print $5}'  |tail -1)  
+#	step=$(cat OSZICAR  2>/dev/null | grep -a F |awk '{print $1}'  |tail -1)  
+#elif [ -f ./OUTCAR ];then
+#	E=$(cat OSZICAR 2>/dev/null | grep -a F |awk '{print $5}'  |tail -1)
+#	F=$(cat OUTCAR  2>/dev/null | grep -a RMS  |awk '{print $5}'  |tail -1)
+#	step=$(cat OSZICAR  2>/dev/null | grep -a F |awk '{print $1}'  |tail -1)
+#elif [ -f ./.Coarse/OUTCAR ];then
+#	workdir=$workdir/.Coarse
+#	shortworkdir=$shortworkdir/.Coarse
+#	cd .Coarse
+#	E=$(cat OSZICAR 2>/dev/null | grep -a F |awk '{print $5}'  |tail -1)
+#	F=$(cat OUTCAR  2>/dev/null | grep -a RMS  |awk '{print $5}'  |tail -1)
+#	step=$(cat OSZICAR  2>/dev/null | grep -a F |awk '{print $1}'  |tail -1)
+#else
+	E=$(cat OSZICAR 2>/dev/null | grep -a F |awk '{print $5}'  |tail -1)
+	F=$(cat OUTCAR  2>/dev/null | grep -a RMS  |awk '{print $5}'  |tail -1)
+	step=$(cat OSZICAR  2>/dev/null | grep -a F |awk '{print $1}'  |tail -1)
+#fi
+
+
+lendir=`expr length $shortworkdir`
+if [ $lendir -gt $maxlendir ]; then
+	shortdir="...${shortworkdir:0-$maxlendisplay}"
+else
+	shortdir=$shortworkdir
+fi
+
+if [  x$F == x  ]; then
+	F=null
+else
+	F=`printf " %.3f " $F `
+
+fi
+if [ -z $step ]; then
+	step=null
+fi
+if [ -z $E ]; then
+	E=0
+fi
+#echo $shortrunpbsid
+#echo $queue
+#echo $procs
+#echo $node
+if [[ $shortdir =~ ^~ || $shortdir =~ ^. ]];then
+	if [ `sed -n  1p fort.188 2>&1 | awk  '{print $1}'` == 0 ]; then
+		printf "\033[33m %-8s \033[32m%-6s \033[31m  %-3s \033[36m%-6s  \033[35m%12s  \033[31m%5s  \033[33m%6s  \033[35;1m%9.3f \033[34m %s\033[0m\n" $shortrunpbsid $queue $procs $node $time  $step $F $E  $shortdir  
+	else
+		printf "\033[33m %-8s \033[32m%-6s \033[31m  %-3s \033[36m%-6s  \033[35m%12s  \033[32m%5s  \033[33m%6s  \033[35;1m%9.3f \033[34m %s\033[0m\n" $shortrunpbsid $queue $procs $node $time  $step $F $E  $shortdir
+	fi
+else
+	if [ `sed -n  1p fort.188 2>&1 | awk  '{print $1}'` == 0 ]; then
+		printf "\033[33m %-8s \033[32m%-6s \033[31m  %-3s \033[36m%-6s  \033[35m%12s  \033[31m%5s  \033[33m%6s  \033[35;1m%9.3f \033[34m $%s\033[0m\n" $shortrunpbsid $queue $procs $node $time  $step $F $E  $shortdir  
+	else
+		printf "\033[33m %-8s \033[32m%-6s \033[31m  %-3s \033[36m%-6s  \033[35m%12s  \033[32m%5s  \033[33m%6s  \033[35;1m%9.3f \033[34m $%s\033[0m\n" $shortrunpbsid $queue $procs $node $time  $step $F $E  $shortdir
+	fi
+fi
+
+#cd - >> /dev/null
+
+rm -rf /tmp/tmp.$runpbsid

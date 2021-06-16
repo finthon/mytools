@@ -1,0 +1,43 @@
+# -*- coding: utf-8 -*-
+"""
+-------------------------------------------------
+   File Name：     grep_idle_core
+   Description :
+   Author :       DrZ
+   date：          2021/1/26
+-------------------------------------------------
+   Change Activity:
+                   2021/1/26:
+-------------------------------------------------
+"""
+import os
+import re
+import subprocess
+
+
+def cal_core(filename):
+    group = filename.split('_')[-1]
+    sum_max_core = 0
+    sum_run_core = 0
+    with open(filename, 'r') as f:
+        for line in f:
+            max_core = re.split('\s+', line)[3]
+            run_job = re.split('\s+', line)[5]
+            sum_max_core += int(max_core)
+            sum_run_core += int(run_job)
+
+    os.remove(filename)
+    idle_core = sum_max_core - sum_run_core
+    print("{:^16}{:^16}{:^16}{:^16}".format(group, sum_max_core, sum_run_core, idle_core))
+
+
+subprocess.call('bhosts hg_short | grep ok > temp_short', shell=True)
+subprocess.call('bhosts hg_debug | grep ok > temp_debug', shell=True)
+subprocess.call('bhosts hg_ser | grep ok > temp_ser', shell=True)
+subprocess.call('bhosts hg_medium | grep ok > temp_medium', shell=True)
+subprocess.call('bhosts hg_large | grep ok > temp_large', shell=True)
+
+print("{:^16}{:^16}{:^16}{:^16}".format("GROUP", "MAX_CORE", "RUN_CORE", "IDLE_CORE"))
+file_list = ['temp_short', 'temp_medium', 'temp_large', 'temp_debug', 'temp_ser']
+for i in file_list:
+    cal_core(i)
