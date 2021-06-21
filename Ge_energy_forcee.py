@@ -39,16 +39,16 @@ for img in images:
                   - np.dot(np.array(nelems), np.array(res)))/len(img)
     reffs = img.get_forces()
     img.set_calculator(calc)
-    eout.write("{:12.9f} {:12.9f}\n".format(refe, img.get_potential_energy()))
+    eout.write("{:8}  {:12.9f} {:12.9f}\n".format(i+1, refe, img.get_potential_energy()))
     forces = len(img) * img.get_forces()
     for j in range(len(img)):
-      fout.write("{:12.9f} {:12.9f}\n".format(reffs[j][0], forces[j][0]))
-      fout.write("{:12.9f} {:12.9f}\n".format(reffs[j][1], forces[j][1]))
-      fout.write("{:12.9f} {:12.9f}\n".format(reffs[j][2], forces[j][2]))
+      fout.write("{:8}_x  {:12.9f} {:12.9f}\n".format(i+1, reffs[j][0], forces[j][0]))
+      fout.write("{:8}_y  {:12.9f} {:12.9f}\n".format(i+1, reffs[j][1], forces[j][1]))
+      fout.write("{:8}_z  {:12.9f} {:12.9f}\n".format(i+1, reffs[j][2], forces[j][2]))
     fout.flush()
     eout.flush()
     if img.get_potential_energy() < 0:
-      print(i, file=f_err)
+      print(i+1, file=f_err)
     i += 1
     print('{} done.'.format(i))
 
