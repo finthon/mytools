@@ -44,6 +44,9 @@ imgIndex = 0
 for img in imgs:
   print("img:",imgIndex)
   imgIndex+=1
+  #if imgIndex != 1937:
+  #   continue
+  print('orig',img.cell.cellpar(radians=True))
   unitvector = img.get_cell()
   unitE = img.get_potential_energy()
   unitF = img.get_forces()
@@ -66,41 +69,53 @@ for img in imgs:
   supercell = img.copy()
   forces = unitF
   energy = unitE
-  for i in range(na):
-    temp = img.copy()
-    temp.set_positions(img.get_positions()+ i*unitvector[0][:])
-    supercell.extend(temp)
-    energy += unitE
-    forces =np.concatenate((forces,unitF))
-    #[len(a), len(b), len(c), angle(b,c), angle(a,c), angle(a,b)]
-    #print(img.cell.cellpar())
-    #print(img.cell.cellpar())
-  supercell.set_cell(unitvector*np.array([[na],[1],[1]]))
-  unitE=energy
-  unitF=forces
+  print("a vector ")
+  if na > 1:
+    for i in range(1, na):
+      temp = img.copy()
+      temp.set_positions(img.get_positions()+ i*unitvector[0][:])
+      supercell.extend(temp)
+      energy += unitE
+      forces =np.concatenate((forces,unitF)) 
+      print(i)
+      #[len(a), len(b), len(c), angle(b,c), angle(a,c), angle(a,b)]
+      #print(img.cell.cellpar())
+      #print(img.cell.cellpar())
+    supercell.set_cell(unitvector*np.array([[na],[1],[1]]))
+    unitE=energy
+    unitF=forces
+  else:
+    supercell=img.copy()
   unitvector = supercell.get_cell()
   supercell_1 = supercell.copy()
-  for i in range(nb):
-    temp = supercell.copy()
-    temp.set_positions(supercell.get_positions()+ i*unitvector[1][:])
-    supercell_1.extend(temp)
-    energy += unitE
-    forces =np.concatenate((forces,unitF))
-  supercell_1.set_cell(unitvector*np.array([[1],[nb],[1]]))
-  unitE=energy
-  unitF=forces
+  print("b vector ")
+  if nb > 1:
+    for i in range(1, nb):
+      print(i)
+      temp = supercell.copy()
+      temp.set_positions(supercell.get_positions()+ i*unitvector[1][:])
+      supercell_1.extend(temp)
+      energy += unitE
+      forces =np.concatenate((forces,unitF))
+    supercell_1.set_cell(unitvector*np.array([[1],[nb],[1]]))
+    unitE=energy
+    unitF=forces
   unitvector = supercell_1.get_cell()
   supercell_2 = supercell_1.copy()
-  for i in range(nc):
-    temp = supercell_1.copy()
-    temp.set_positions(supercell_1.get_positions()+ i*unitvector[2][:])
-    supercell_2.extend(temp)
-    energy += unitE
-    forces =np.concatenate((forces,unitF))
-  supercell_2.set_cell(unitvector*np.array([[1],[1],[nc]]))
+  print("c vector ")
+  if nc > 1:
+    for i in range(1, nc):
+      print(i)
+      temp = supercell_1.copy()
+      temp.set_positions(supercell_1.get_positions()+ i*unitvector[2][:])
+      supercell_2.extend(temp)
+      energy += unitE
+      forces =np.concatenate((forces,unitF))
+    supercell_2.set_cell(unitvector*np.array([[1],[1],[nc]]))
   calc = force_setter(energy=energy, forces=forces)
   supercell_2.set_calculator(calc)
   supercell_2.get_potential_energy()
   supercell_2.get_forces()
   #print(img.get_positions())
   trajs.write(supercell_2)
+  print('exped',supercell_2.cell.cellpar(radians=True))
