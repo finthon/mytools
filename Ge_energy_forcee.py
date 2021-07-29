@@ -35,13 +35,14 @@ for img in images:
         continue
       nelems.append(nsymbols[key])
       res.append(refEs[key])
-    #refe = (img.get_potential_energy(apply_constraint=False)
-    #              - np.dot(np.array(nelems), np.array(res)))/len(img)
+    refe_atom = (img.get_potential_energy(apply_constraint=False)
+                  - np.dot(np.array(nelems), np.array(res)))/len(img)
     refe = img.get_potential_energy(apply_constraint=False)
     reffs = img.get_forces()
     img.set_calculator(calc)
+    prede_atom = img.get_potential_energy()
     prede = img.get_potential_energy()*len(img)+np.dot(np.array(nelems), np.array(res))
-    eout.write("{:8}  {:12.9f} {:12.9f}\n".format(i+1, refe, prede))
+    eout.write("{:8}  {:12.9f} {:12.9f} {:12.9f} {:12.9f}\n".format(i+1, refe, prede, refe_atom, prede_atom))
     forces = len(img) * img.get_forces()
     #forces = img.get_forces()
     for j in range(len(img)):
