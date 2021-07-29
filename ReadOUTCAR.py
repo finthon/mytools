@@ -26,8 +26,8 @@ class ReadOUTCAR:
         self.n = 0  # structure_num
         self.filename = filename
         self.end_regex = r'^\s*-.*-\s*$'
-        self.energy_regex = r'^\s*energy  without entropy=.*energy\(sigma->0\).*\s*$'
         self.position_force_energy_dict = OrderedDict()
+        self.energy_regex = r'^\s*energy  without entropy=.*energy\(sigma->0\).*\s*$'
         self.force_regex = re.compile(r"^\s*POSITION\s+TOTAL-FORCE\s*\(eV\/Angst\)\s*$")
         self.cell_regex = r'^\s*direct lattice vectors\s*reciprocal lattice vectors\s*$'
 
@@ -159,9 +159,9 @@ if __name__ == '__main__':
     else:
         filename = 'OUTCAR'     # or give outcar path by hand here
     ro = ReadOUTCAR(filename)
-    print(ro.get_positions(step=12))
+    print(ro.get_positions(step=-1))
     print(ro.get_forces(step=-1))
-    print(ro.get_cells(step=-1))
+    print(ro.get_cells())
     print(ro.get_potential_energies(step=-1))
 
 
