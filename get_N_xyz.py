@@ -28,7 +28,6 @@ def getNxyz(infile='3w-pos-1.xyz', step=1):
         if a == step:
             f1.write(i_row)
         # read structure line
-        coord_list = []
         if a == step:
             for natom in range(ncow):
                 f1.write(f.readline())
