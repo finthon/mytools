@@ -7,7 +7,7 @@
    date：          2021/3/1
 -------------------------------------------------
    Change Activity:
-                   2021/6/17:
+                   2021/10/25:
 -------------------------------------------------
 """
 import os
@@ -72,10 +72,16 @@ if finthon is False:
                 else:
                     raise Exception('Obtaining RUN_TIME wrong!')
             else:
-                zz = re.search(r'CWD <.HOME/.+.+>,.*Output', p)
-                if zz is None:
-                    zz = re.search(r'CWD <.HOME/.+.+>', p)
-                zz = re.search('<.+\n*.+>', zz.group())
+                try:
+                    zz = re.search(r'CWD <.HOME/.+.+>,.*Output', p)
+                    if zz is None:
+                        zz = re.search(r'CWD <.HOME/.+.+>', p)
+                    zz = re.search('<.+\n*.+>', zz.group())
+                except:
+                    zz = re.search(r'CWD </data/.+.+>,.*Output', p)
+                    if zz is None:
+                        zz = re.search(r'CWD </data/.+.+>', p)
+                    zz = re.search('<.+\n*.+>', zz.group())
                 zz = re.split('\s+', zz.group())
                 path = zz[0].strip('<>')
                 path_list.append(path)
