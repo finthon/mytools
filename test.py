@@ -38,8 +38,8 @@ class force_setter(Calculator):
 
 args=sys.argv
 imgs = read(args[1], index=":")
-trajs = Trajectory('supercell.traj','w')
-Rcut = 5.7
+trajs = Trajectory('train.traj','w')
+Rcut = 4.5
 imgIndex = 0
 for img in imgs:
   print("img:",imgIndex)

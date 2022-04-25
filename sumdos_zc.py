@@ -14,6 +14,10 @@ import pandas as pd
 import sys
 import os
 
+"""
+Usage: sumdos_zc 1 n 
+(n is the total atom number)
+"""
 file_name = sys.argv[0]
 DOS_range = sys.argv[1:]
 

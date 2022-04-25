@@ -1,7 +1,7 @@
 #!/bin/sh
 
 rm -f temp*
-qsub_script=vasp.lsf
+qsub_script=vasp.script
 p=$PWD
 
 dir=`find . -name OUTCAR`

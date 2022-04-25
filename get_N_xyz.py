@@ -14,6 +14,7 @@ import sys
 
 
 def getNxyz(infile='3w-pos-1.xyz', step=1):
+    # step is the number of 'ase gui'
     f = open(infile, 'r')
     f1 = open('{}.xyz'.format(step), 'w')
     line = f.readline()

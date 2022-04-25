@@ -1,0 +1,5 @@
+#!/bin/bash
+
+path=`python ~/script/zcd.py $1`
+cd $path
+
