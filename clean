@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-vasp = ['INCAR', 'POSCAR', 'POTCAR', 'KPOINTS', 'fort.188', 'vasp.script', 'vasp_std', 'data_collector.py', 'config.ini', 'run-vasp.sh', 'config.ini', 'fpParas.dat', 'train.traj', 'run-pyamff.sh', 'run-python.sh', 'Ge.traj']
+vasp = ['INCAR', 'POSCAR', 'POTCAR', 'KPOINTS', 'fort.188', 'vasp.script', 'vasp_std', 'data_collector.py', 'config.ini', 'run-vasp.sh', 'config.ini', 'fpParas.dat', 'train.traj', 'run-pyamff.sh', 'run-python.sh', 'Ge.traj', 'vdw_kernel.bindat', 'WAVECAR']
 for file in os.listdir(r'./'):
     if file not in vasp:
             subprocess.call('rm {}'.format(file), shell=True)
