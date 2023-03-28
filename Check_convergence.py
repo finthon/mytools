@@ -5,7 +5,7 @@ import numpy as np
 
 f = open('check_converge', 'w')
 
-for n in range(0, 7001):
+for n in range(0, 500):
     try:
         i = 1
         os.chdir('./{}'.format(n))
