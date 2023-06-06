@@ -26,7 +26,7 @@ DOS_range = sys.argv[2:]
 pwd = os.getcwd()
 
 t_tp, t_tn, t_sp, t_sn, t_pp, t_pn, t_dp, t_dn, t_fp, t_fn, t_dz2p, t_dz2n, t_pdp, t_pdn = [0] * 14
-if job_type == 0:
+if int(job_type) == 0:
     for i in range(int(DOS_range[0]), int(DOS_range[1]) + 1):
         df = pd.read_csv(os.path.join(pwd, 'DOS{}'.format(str(i))), header=None, sep='\s+')
         df_sp = df[1]
@@ -78,7 +78,7 @@ if job_type == 0:
     data['pd'] = t_pdp - t_pdn
     data.to_excel('DOS.SUM.{}.to.{}.xlsx'.format(DOS_range[0], DOS_range[1]), index=False)
 
-elif job_type == 1:
+elif int(job_type) == 1:
     for i in DOS_range:
         df = pd.read_csv(os.path.join(pwd, 'DOS{}'.format(str(i))), header=None, sep='\s+')
         df_sp = df[1]
